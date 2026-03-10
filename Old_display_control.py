@@ -37,7 +37,7 @@ REGION_DIR = os.path.join(os.path.dirname(__file__),'regions')
 
 region_set = {101,102,103,104,105,106,107,108,109,110,111,112,
            201,202,203,204,205,206,207,208,209,210,211,212,
-           301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,
+           301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316.317,318,
            401,402,403,404,405,406,407,408,409,410,411,412,413,414,
            501,502,503}
 
@@ -63,61 +63,18 @@ def play_audio(region_name):
 # Initialize pygame mixer for audio playback
 pygame.mixer.init()
 
-from collections import Counter
-
-cooldown_duration = 1   # seconds
-SAMPLE_WINDOW = 1.5     # seconds to collect serial reads before deciding
-MIN_SAMPLES = 2         # need at least this many reads in the window
-MAJORITY_RATIO = 0.5    # a value must appear in >50% of reads to be accepted
+cooldown_duration = 1  # seconds
 
 logging.basicConfig(level=logging.DEBUG)
 
-def get_raw_input():
+def get_input():
     if use_serial and ser.in_waiting > 0:
         return ser.readline().decode('utf-8').strip()
     elif not use_serial:
+        # Check stdin for input with a small timeout to avoid blocking
         rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
         if rlist:
             return sys.stdin.readline().strip()
-    return None
-
-def get_input():
-    """Collect serial reads over a time window and use majority vote.
-    A real button press makes one value appear more often than noise values.
-    Noise from floating pins spreads reads across many different values
-    with no clear winner."""
-
-    first_read = get_raw_input()
-    if not first_read or not first_read.isdigit():
-        return None
-
-    # Collect reads over the sample window
-    reads = [first_read]
-    start = time.time()
-    while (time.time() - start) < SAMPLE_WINDOW:
-        val = get_raw_input()
-        if val and val.isdigit():
-            reads.append(val)
-        time.sleep(0.02)
-
-    if use_serial:
-        ser.reset_input_buffer()
-
-    print(f"  [debug] collected {len(reads)} reads: {reads}")
-
-    if len(reads) < MIN_SAMPLES:
-        return None
-
-    # Find the most common value
-    counts = Counter(reads)
-    winner, winner_count = counts.most_common(1)[0]
-
-    # Accept only if the winner has a clear majority
-    if winner_count / len(reads) > MAJORITY_RATIO:
-        print(f"  [debug] accepted {winner} ({winner_count}/{len(reads)} reads)")
-        return winner
-
-    print(f"  [debug] no majority, rejecting (top: {winner}={winner_count}/{len(reads)})")
     return None
 
 try:
@@ -153,6 +110,7 @@ try:
         button_index = get_input()
         if button_index:
             print(f'read {button_index}')
+        if button_index and button_index.isdigit():
             button_index = int(button_index)
             if button_index in region_set:
                 region_name = button_index # this is the code for region
